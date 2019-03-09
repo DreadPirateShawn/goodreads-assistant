@@ -42,6 +42,26 @@ def has_genre(shelves, *targets):
             return "x"
     return None
 
+def get_titles(book):
+    show_title = book.title
+    original_title = book.work.get("original_title", None)
+    # If the display title starts with the original title,
+    # then it probably has the series appended. Strip it here,
+    # we show series elsewhere.
+    if not original_title:
+        return show_title, None
+    if isinstance(original_title, dict):
+        # Sometimes this comes back as OrderedDict([('@nil', 'true')]), e.g. gid 18923413
+        return show_title, None
+    elif show_title.startswith(original_title):
+        return original_title, None
+    else:
+        return show_title, original_title
+
+def ellipsis(raw):
+    maxlen = 50
+    return (raw[:maxlen-3] + '...') if len(raw) > maxlen else raw
+
 def main(args):
     # Goodreads
     gc = client.GoodreadsClient(args.goodreads_key, args.goodreads_secret)
@@ -55,6 +75,8 @@ def main(args):
         "Title",
         "Original Title",
         "Published",
+        "Series #",
+        "Series Works",
         "Rating Dist",
         "Avg Rating",
         "# Ratings",
@@ -63,49 +85,54 @@ def main(args):
         "Post-apoc",
         "Horror",
         "Comics",
+        "Career",
         "Series",
-        "Series #",
-        "Series Works",
         "Popular Shelves",
     ]
     itercount = 1
     values = []
     for book in books:
-        # Indicate progress...
-        print("[%s/%s] %s ~ %s" % (itercount, len(books), book.gid, book.title))
-        # Fetch full version of the book here, to populate things like popular shelves.
-        book = gc.book(book_id=book.gid)
-        # Original title
-        original_title = book.work.get("original_title", None) #if book.work else None
-        # Series info
-        series_title, series_pos = get_series_name_and_pos(book)
-        # Genre flags?
-        fantasy = has_genre(book.popular_shelves, "fantasy")
-        scifi = has_genre(book.popular_shelves, "sci-fi", "science-fiction")
-        postapoc = has_genre(book.popular_shelves, "post-apocalyptic")
-        horror = has_genre(book.popular_shelves, "horror")
-        comics = has_genre(book.popular_shelves, "comics", "graphic-novels")
-        # Add to values array for spreadsheet.
-        values.append([str(x) if x else None for x in [
-            book.gid,
-            ', '.join([author.name for author in book.authors]),
-            book.title,
-            original_title,
-            book.publication_date[2] if book.publication_date and len(book.publication_date)==3 else None,
-            book.rating_dist,
-            book.average_rating,
-            book.ratings_count,
-            fantasy,
-            scifi,
-            postapoc,
-            horror,
-            comics,
-            series_title,
-            series_pos,
-            book.series_works,
-            book.popular_shelves,
-        ]])
-        itercount += 1
+        try:
+            # Indicate progress...
+            print("[%s/%s] %s ~ %s" % (itercount, len(books), book.gid, book.title))
+            # Fetch full version of the book here, to populate things like popular shelves.
+            book = gc.book(book_id=book.gid)
+            # Titles
+            show_title, original_title = get_titles(book)
+            # Series info
+            series_title, series_pos = get_series_name_and_pos(book)
+            # Genre flags?
+            fantasy = has_genre(book.popular_shelves, "fantasy")
+            scifi = has_genre(book.popular_shelves, "sci-fi", "science-fiction")
+            postapoc = has_genre(book.popular_shelves, "post-apocalyptic")
+            horror = has_genre(book.popular_shelves, "horror")
+            comics = has_genre(book.popular_shelves, "comics", "graphic-novels")
+            career = has_genre(book.popular_shelves, "management", "leadership", "business")
+            # Add to values array for spreadsheet.
+            values.append([
+                book.gid,
+                ellipsis(', '.join([author.name for author in book.authors])),
+                show_title,
+                original_title,
+                book.publication_date[2] if book.publication_date and len(book.publication_date)==3 else None,
+                series_title,
+                series_pos,
+                book.rating_dist,
+                book.average_rating,
+                book.ratings_count,
+                fantasy,
+                scifi,
+                postapoc,
+                horror,
+                comics,
+                career,
+                str(book.series_works),
+                str(book.popular_shelves),
+            ])
+            itercount += 1
+        except:
+            print(book._book_dict)
+            raise
 
     # Sheets
     gc = pygsheets.authorize()
@@ -117,8 +144,12 @@ def main(args):
         wks = sheet.add_worksheet(tab_name)
     wks.clear()
     wks.resize(rows=len(values) + 1, cols=len(headers))
-    wks.update_values(crange='A1', values=[headers])
-    wks.update_values(crange='A2', values=values)
+    try:
+        wks.update_values(crange='A1', values=[headers])
+        wks.update_values(crange='A2', values=values)
+    except:
+        print(values)
+        raise
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
