@@ -1,11 +1,13 @@
 import argparse
 import pygsheets
+import re
 from goodreads import client
 from goodreads.book import GoodreadsBook
 
 def get_series_name_and_pos(book):
     series_title = None
     series_pos = None
+    series_extended = None
     #   OrderedDict([
     #    ('series_work', OrderedDict([
     #      ('id', '841082'),
@@ -21,26 +23,36 @@ def get_series_name_and_pos(book):
 
     # Check for absent, or for multiple series (e.g. Swamp Thing comics)
     if not book.series_works:
-        return None, None
+        return None, None, None
     series_work = book.series_works.get("series_work", {})
     if not series_work:
-        return None, None
+        return None, None, None
+    # If it's a list, just take the first one and so be it.
     if isinstance(series_work, list):
-        return "(multiple series)", None
-
-    # Otherwise process as a dict
+        series_work = series_work[0]
+    # Process what you have as a dict
     series_title = series_work.get("series", {}).get("title", None)
-    series_pos = "{pos} of {count} or {count2}".format(
-        pos = series_work.get("user_position", "?"),
-        count = series_work.get("series", {}).get("series_works_count", "?"),
-        count2 = series_work.get("series", {}).get("primary_work_count", "?"))
-    return series_title, series_pos
+    pos = series_work.get("user_position", "?")
+    # Primary count e.g. the trilogy, vs extended count e.g. all books in same universe.
+    # Ex: https://www.goodreads.com/series/135117
+    # 17 primary works • 29 total works
+    primary_count = series_work.get("series", {}).get("primary_work_count", "?")
+    extended_count = series_work.get("series", {}).get("series_works_count", "?")
+    if primary_count == extended_count:
+        series_pos = "{pos} of {count}".format(pos=pos, count=primary_count)
+        series_extended = None
+    else:
+        series_pos = "{pos} of {count}".format(pos=pos, count=primary_count)
+        series_extended = extended_count
+    return series_title, series_pos, series_extended
 
 def has_genre(shelves, *targets):
     for target in targets:
         if any([x for x in shelves if target in x]):
             return "x"
     return None
+
+NONALPHANUMERIC_PATTERN = re.compile('[\W_]+')
 
 def get_titles(book):
     show_title = book.title
@@ -53,8 +65,10 @@ def get_titles(book):
     if isinstance(original_title, dict):
         # Sometimes this comes back as OrderedDict([('@nil', 'true')]), e.g. gid 18923413
         return show_title, None
-    elif show_title.startswith(original_title):
+    elif show_title.lower().startswith(original_title.lower()):
         return original_title, None
+    elif NONALPHANUMERIC_PATTERN.sub('', show_title).lower() == NONALPHANUMERIC_PATTERN.sub('', original_title).lower():
+        return show_title, None
     else:
         return show_title, original_title
 
@@ -75,8 +89,9 @@ def main(args):
         "Title",
         "Original Title",
         "Published",
+        "Series",
         "Series #",
-        "Series Works",
+        "Extended",
         "Rating Dist",
         "Avg Rating",
         "# Ratings",
@@ -86,7 +101,7 @@ def main(args):
         "Horror",
         "Comics",
         "Career",
-        "Series",
+        "Science",
         "Popular Shelves",
     ]
     itercount = 1
@@ -100,7 +115,7 @@ def main(args):
             # Titles
             show_title, original_title = get_titles(book)
             # Series info
-            series_title, series_pos = get_series_name_and_pos(book)
+            series_title, series_pos, series_extended = get_series_name_and_pos(book)
             # Genre flags?
             fantasy = has_genre(book.popular_shelves, "fantasy")
             scifi = has_genre(book.popular_shelves, "sci-fi", "science-fiction")
@@ -108,6 +123,7 @@ def main(args):
             horror = has_genre(book.popular_shelves, "horror")
             comics = has_genre(book.popular_shelves, "comics", "graphic-novels")
             career = has_genre(book.popular_shelves, "management", "leadership", "business")
+            science = has_genre(book.popular_shelves, "science")
             # Add to values array for spreadsheet.
             values.append([
                 book.gid,
@@ -117,6 +133,7 @@ def main(args):
                 book.publication_date[2] if book.publication_date and len(book.publication_date)==3 else None,
                 series_title,
                 series_pos,
+                series_extended,
                 book.rating_dist,
                 book.average_rating,
                 book.ratings_count,
@@ -126,7 +143,7 @@ def main(args):
                 horror,
                 comics,
                 career,
-                str(book.series_works),
+                science,
                 str(book.popular_shelves),
             ])
             itercount += 1
