@@ -79,8 +79,8 @@ def ellipsis(raw):
 def main(args):
     # Goodreads
     gc = client.GoodreadsClient(args.goodreads_key, args.goodreads_secret)
-    books = gc.shelf(args.goodreads_user, args.goodreads_shelf, show_progress=True)
-    books.sort(key=lambda x: x.authors[0].name)
+    reviews = gc.shelf(args.goodreads_user, args.goodreads_shelf, show_progress=True)
+    reviews.sort(key=lambda x: x.book.authors[0].name)
 
     # Data prep
     headers = [
@@ -106,10 +106,11 @@ def main(args):
     ]
     itercount = 1
     values = []
-    for book in books:
+    for review in reviews:
         try:
+            book = review.book
             # Indicate progress...
-            print("[%s/%s] %s ~ %s" % (itercount, len(books), book.gid, book.title))
+            print("[%s/%s] %s ~ %s" % (itercount, len(reviews), book.gid, book.title))
             # Fetch full version of the book here, to populate things like popular shelves.
             book = gc.book(book_id=book.gid)
             # Titles
