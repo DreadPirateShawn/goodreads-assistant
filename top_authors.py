@@ -21,6 +21,7 @@ def main(args):
         "Max",
         "Avg",
         "#",
+        "Example",
     ]
     itercount = 1
     authors = {}
@@ -31,23 +32,38 @@ def main(args):
             if len(book.authors) > 1:
                 print(" - multiple authors: %s" % ', '.join([author.name for author in book.authors]))
             primary_author = book.authors[0].name
-            authors[primary_author] = authors.get(primary_author, []) + [int(review.rating)]
+            specs = authors.get(primary_author, {})
+            rating = int(review.rating)
+            specs['ratings'] = specs.get('ratings', []) + [rating]
+            # Alt logic here:
+            #   if 'example' not in specs or rating > max(specs['ratings']):
+            # However, reviews tend to come in reverse order, e.g. book #3 before book #1.
+            # Thus allowing the last highest-rating to take priority means we get
+            #   the first-read book to achieve such a rating, which is usually perfect.
+            if rating >= max(specs['ratings']):
+                specs['example'] = book.title
+            authors[primary_author] = specs
             itercount += 1
         except:
             print(book._book_dict)
             raise
+    for author, specs in authors.items():
+        specs['max'] = max(specs['ratings'])
+        specs['mean'] = mean(specs['ratings'])
+        specs['count'] = len(specs['ratings'])
     values = []
-    # Sort authors data by: max rating, avg rating
+    # Sort authors data by: max rating, count, avg rating
     authors = OrderedDict(sorted(authors.items(),
-                                 key=lambda ratings: (max(ratings[1]), mean(ratings[1]), len(ratings[1])),
+                                 key=lambda specs: (specs[1]['max'], specs[1]['count'], specs[1]['mean']),
                                  reverse=True))
-    for author, ratings in authors.items():
+    for author, specs in authors.items():
         # Add to values array for spreadsheet.
         values.append([
             author,
-            max(ratings),
-            "{:.1f}".format(mean(ratings)),
-            len(ratings),
+            specs['max'],
+            "{:.1f}".format(specs['mean']),
+            specs['count'],
+            specs['example'],
         ])
 
     # Sheets
