@@ -1,5 +1,7 @@
 import argparse
 import pygsheets
+from collections import OrderedDict
+from statistics import mean
 from goodreads import client
 from goodreads.book import GoodreadsBook
 
@@ -16,27 +18,37 @@ def main(args):
     # Data prep
     headers = [
         "Author(s)",
-        "Title",
-        "My Rating",
+        "Max",
+        "Avg",
+        "#",
     ]
     itercount = 1
-    values = []
+    authors = {}
     for review in reviews:
         try:
             book = review.book
-            # Indicate progress...
             print("[%s/%s] %s ~ %s" % (itercount, len(reviews), book.gid, book.title))
-
-            # Add to values array for spreadsheet.
-            values.append([
-                ellipsis(', '.join([author.name for author in book.authors])),
-                book.title,
-                review.rating,
-            ])
+            if len(book.authors) > 1:
+                print(" - multiple authors: %s" % ', '.join([author.name for author in book.authors]))
+            primary_author = book.authors[0].name
+            authors[primary_author] = authors.get(primary_author, []) + [int(review.rating)]
             itercount += 1
         except:
             print(book._book_dict)
             raise
+    values = []
+    # Sort authors data by: max rating, avg rating
+    authors = OrderedDict(sorted(authors.items(),
+                                 key=lambda ratings: (max(ratings[1]), mean(ratings[1]), len(ratings[1])),
+                                 reverse=True))
+    for author, ratings in authors.items():
+        # Add to values array for spreadsheet.
+        values.append([
+            author,
+            max(ratings),
+            "{:.1f}".format(mean(ratings)),
+            len(ratings),
+        ])
 
     # Sheets
     gc = pygsheets.authorize()
