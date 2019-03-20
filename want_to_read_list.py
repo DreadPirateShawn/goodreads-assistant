@@ -48,7 +48,7 @@ def get_series_name_and_pos(book):
 
 def has_genre(shelves, *targets):
     for target in targets:
-        if any([x for x in shelves if target in x]):
+        if any([x for x in shelves if target == x]):
             return "x"
     return None
 
@@ -135,7 +135,7 @@ def main(args):
             horror = has_genre(book.popular_shelves, "horror")
             comics = has_genre(book.popular_shelves, "comics", "graphic-novels")
             career = has_genre(book.popular_shelves, "management", "leadership", "business")
-            science = has_genre(book.popular_shelves, "science")
+            science = has_genre(book.popular_shelves, "academic", "research", "education")
             # Add to values array for spreadsheet.
             values.append([
                 book.gid,
