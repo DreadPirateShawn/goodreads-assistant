@@ -85,6 +85,8 @@ def main(args):
     # Data prep
     headers = [
         "GID",
+        "Phys.",
+        "Kindle",
         "Author(s)",
         "Title",
         "Original Title",
@@ -118,6 +120,15 @@ def main(args):
             # Series info
             series_title, series_pos, series_extended = get_series_name_and_pos(book)
             # Genre flags?
+            owned_physical = owned_kindle = ""
+            if "owned-physical" in review.shelves:
+                owned_physical = "x"
+            if "owned-kindle" in review.shelves:
+                owned_kindle = "x"
+            if review.owned and int(review.owned):
+                # default value is '0' (string)
+                owned_physical = "?"
+                owned_kindle = "?"
             fantasy = has_genre(book.popular_shelves, "fantasy")
             scifi = has_genre(book.popular_shelves, "sci-fi", "science-fiction")
             postapoc = has_genre(book.popular_shelves, "post-apocalyptic")
@@ -128,6 +139,8 @@ def main(args):
             # Add to values array for spreadsheet.
             values.append([
                 book.gid,
+                owned_physical,
+                owned_kindle,
                 ellipsis(', '.join([author.name for author in book.authors])),
                 show_title,
                 original_title,
