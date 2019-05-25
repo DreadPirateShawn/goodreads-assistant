@@ -7,8 +7,7 @@ source venv/bin/activate
 
 Once inside the virtual env:
 ```
-pip install https://github.com/nithinmurali/pygsheets/archive/master.zip
-pip install Goodreads
+pip install -r requirements.txt
 ```
 
 ## Generating / updating the spreadsheet
