@@ -1,2 +1,3 @@
 https://github.com/nithinmurali/pygsheets/archive/master.zip
 Goodreads
+nameparser

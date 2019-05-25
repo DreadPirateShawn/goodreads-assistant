@@ -3,6 +3,7 @@ import pygsheets
 import re
 from goodreads import client
 from goodreads.book import GoodreadsBook
+from nameparser import HumanName
 
 def get_series_name_and_pos(book):
     series_title = None
@@ -72,6 +73,13 @@ def get_titles(book):
     else:
         return show_title, original_title
 
+def get_authors(book):
+    formatted = []
+    for author in book.authors:
+        name = HumanName(author.name)
+        formatted.append(f'{name.last}, {name.first}')
+    return '; '.join(formatted)
+
 def ellipsis(raw):
     maxlen = 50
     return (raw[:maxlen-3] + '...') if len(raw) > maxlen else raw
@@ -80,7 +88,7 @@ def main(args):
     # Goodreads
     gc = client.GoodreadsClient(args.goodreads_key, args.goodreads_secret)
     reviews = gc.shelf(args.goodreads_user, args.goodreads_shelf, show_progress=True)
-    reviews.sort(key=lambda x: x.book.authors[0].name)
+    reviews.sort(key=lambda x: HumanName(x.book.authors[0].name).last)
 
     # Data prep
     headers = [
@@ -117,6 +125,8 @@ def main(args):
             book = gc.book(book_id=book.gid)
             # Titles
             show_title, original_title = get_titles(book)
+            # Author(s)
+            authors = get_authors(book)
             # Series info
             series_title, series_pos, series_extended = get_series_name_and_pos(book)
             # Genre flags?
@@ -141,7 +151,7 @@ def main(args):
                 book.gid,
                 owned_physical,
                 owned_kindle,
-                ellipsis(', '.join([author.name for author in book.authors])),
+                ellipsis(authors),
                 show_title,
                 original_title,
                 book.publication_date[2] if book.publication_date and len(book.publication_date)==3 else None,
