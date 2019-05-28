@@ -88,7 +88,7 @@ def main(args):
     # Goodreads
     gc = client.GoodreadsClient(args.goodreads_key, args.goodreads_secret)
     reviews = gc.shelf(args.goodreads_user, args.goodreads_shelf, show_progress=True)
-    reviews.sort(key=lambda x: HumanName(x.book.authors[0].name).last)
+    reviews.sort(key=lambda x: (HumanName(x.book.authors[0].name).last, x.gid))
 
     # Data prep
     headers = [
