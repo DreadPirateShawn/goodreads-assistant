@@ -172,7 +172,7 @@ def main(args):
             ])
             itercount += 1
         except:
-            print(book._book_dict)
+            print(review._review_dict)
             raise
 
     # Sheets
