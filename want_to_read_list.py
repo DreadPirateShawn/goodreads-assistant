@@ -1,6 +1,7 @@
 import argparse
 import pygsheets
 import re
+from datetime import datetime
 from goodreads import client
 from goodreads.book import GoodreadsBook
 from nameparser import HumanName
@@ -84,6 +85,9 @@ def ellipsis(raw):
     maxlen = 50
     return (raw[:maxlen-3] + '...') if len(raw) > maxlen else raw
 
+def display_date(val, pattern):
+    return datetime.strftime(val, pattern) if val else ''
+
 def main(args):
     # Goodreads
     gc = client.GoodreadsClient(args.goodreads_key, args.goodreads_secret)
@@ -105,6 +109,7 @@ def main(args):
         "Rating Dist",
         "Avg Rating",
         "# Ratings",
+        "Date Shelved",
         "Fantasy",
         "Sci-fi",
         "Post-apoc",
@@ -161,6 +166,7 @@ def main(args):
                 book.rating_dist,
                 book.average_rating,
                 book.ratings_count,
+                display_date(review.date_added, "%m/%d/%Y"),
                 fantasy,
                 scifi,
                 postapoc,
