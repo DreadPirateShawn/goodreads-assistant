@@ -21,6 +21,8 @@ def main(args):
         "Max",
         "Avg",
         "#",
+        "Their Avg",
+        "My Skew",
         "Example",
     ]
     itercount = 1
@@ -34,13 +36,14 @@ def main(args):
             primary_author = book.authors[0].name
             specs = authors.get(primary_author, {})
             rating = int(review.rating)
-            specs['ratings'] = specs.get('ratings', []) + [rating]
+            specs['my_ratings'] = specs.get('my_ratings', []) + [rating]
+            specs['their_ratings'] = specs.get('their_ratings', []) + [float(book.average_rating)]
             # Alt logic here:
-            #   if 'example' not in specs or rating > max(specs['ratings']):
+            #   if 'example' not in specs or rating > max(specs['my_ratings']):
             # However, reviews tend to come in reverse order, e.g. book #3 before book #1.
             # Thus allowing the last highest-rating to take priority means we get
             #   the first-read book to achieve such a rating, which is usually perfect.
-            if rating >= max(specs['ratings']):
+            if rating >= max(specs['my_ratings']):
                 specs['example'] = book.title
             authors[primary_author] = specs
             itercount += 1
@@ -48,9 +51,10 @@ def main(args):
             print(book._book_dict)
             raise
     for author, specs in authors.items():
-        specs['max'] = max(specs['ratings'])
-        specs['mean'] = mean(specs['ratings'])
-        specs['count'] = len(specs['ratings'])
+        specs['max'] = max(specs['my_ratings'])
+        specs['mean'] = mean(specs['my_ratings'])
+        specs['count'] = len(specs['my_ratings'])
+        specs['their_mean'] = mean(specs['their_ratings'])
     values = []
     # Sort authors data by: max rating, count, avg rating
     authors = OrderedDict(sorted(authors.items(),
@@ -63,6 +67,8 @@ def main(args):
             specs['max'],
             "{:.1f}".format(specs['mean']),
             specs['count'],
+            "{:.1f}".format(specs['their_mean']),
+            "{:.1f}".format(specs['mean'] - specs['their_mean']),
             specs['example'],
         ])
 
